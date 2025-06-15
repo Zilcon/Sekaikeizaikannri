@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NOVA - GitHub Pages対応版</title>
+<style>
+  body { font-family: sans-serif; max-width: 600px; margin: 20px auto; }
+  input, select, button { margin: 5px 0; padding: 8px; width: 100%; box-sizing: border-box; }
+  button { cursor: pointer; }
+  .section { margin-bottom: 30px; border-bottom: 1px solid #ccc; padding-bottom: 20px; }
+</style>
+</head>
+<body>
+
+<h1>NOVA クライアント</h1>
+
+<div class="section" id="login-section">
+  <h2>ログイン</h2>
+  <input type="text" id="nation" placeholder="国名" />
+  <input type="password" id="password" placeholder="パスワード" />
+  <button onclick="login()">ログイン</button>
+  <p id="login-msg" style="color:red;"></p>
+</div>
+
+<div class="section" id="action-section" style="display:none;">
+  <h2>アクション（1日1回まで）</h2>
+  <button onclick="performAction('経済')">経済</button>
+  <button onclick="performAction('軍事')">軍事</button>
+  <button onclick="performAction('開発')">開発</button>
+  <button onclick="performAction('植民')">植民</button>
+  <button onclick="performAction('内政')">内政</button>
+  <p id="action-msg" style="color:green;"></p>
+</div>
+
+<div class="section" id="transfer-section" style="display:none;">
+  <h2>譲渡</h2>
+  <input type="text" id="transfer-to" placeholder="譲渡先 国名" />
+  <select id="transfer-status">
+    <option value="経済">経済</option>
+    <option value="軍事">軍事</option>
+    <option value="開発">開発</option>
+    <option value="植民">植民</option>
+    <option value="内政">内政</option>
+  </select>
+  <input type="number" id="transfer-amount" placeholder="数" min="1" />
+  <button onclick="transfer()">譲渡実行</button>
+  <p id="transfer-msg" style="color:blue;"></p>
+</div>
+
+<script>
+const GAS_URL = "https://script.google.com/macros/s/AKfycby5rZ5zAXWgLexrT64uhsBNpSpPLXpu9jZt6QpNidXNGw0iooG5OZLM4tLEjId0dpiTUw/exec";
+
+let loggedInNation = null;
+let loggedInPassword = null;
+
+function login() {
+  const nation = document.getElementById('nation').value.trim();
+  const password = document.getElementById('password').value.trim();
+  const msg = document.getElementById('login-msg');
+  if (!nation || !password) {
+    msg.textContent = "国名とパスワードを入力してください。";
+    return;
+  }
+  // 簡易的にクライアント側でログイン成功扱い
+  loggedInNation = nation;
+  loggedInPassword = password;
+  msg.textContent = "";
+  document.getElementById('login-section').style.display = 'none';
+  document.getElementById('action-section').style.display = 'block';
+  document.getElementById('transfer-section').style.display = 'block';
+  alert(`${nation}さん、ログインしました！`);
+}
+
+async function performAction(actionType) {
+  if (!loggedInNation || !loggedInPassword) {
+    alert("ログインしてください。");
+    return;
+  }
+  const msg = document.getElementById('action-msg');
+  msg.textContent = "処理中…";
+
+  try {
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "action",
+        nation: loggedInNation,
+        password: loggedInPassword,
+        action: actionType,
+        date: new Date().toISOString().slice(0,10)  // YYYY-MM-DD
+      })
+    });
+    const data = await res.json();
+    if(data.success) {
+      msg.style.color = "green";
+      msg.textContent = `${actionType}のアクションを実行しました。`;
+    } else {
+      msg.style.color = "red";
+      msg.textContent = `エラー: ${data.message}`;
+    }
+  } catch (e) {
+    msg.style.color = "red";
+    msg.textContent = `通信エラー: ${e.message}`;
+  }
+}
+
+async function transfer() {
+  if (!loggedInNation || !loggedInPassword) {
+    alert("ログインしてください。");
+    return;
+  }
+  const to = document.getElementById('transfer-to').value.trim();
+  const status = document.getElementById('transfer-status').value;
+  const amount = parseInt(document.getElementById('transfer-amount').value);
+  const msg = document.getElementById('transfer-msg');
+
+  if (!to || !status || !amount || amount <= 0) {
+    msg.style.color = "red";
+    msg.textContent = "譲渡先、ステータス、数を正しく入力してください。";
+    return;
+  }
+  msg.textContent = "処理中…";
+
+  try {
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "transfer",
+        nation: loggedInNation,
+        password: loggedInPassword,
+        transferTo: to,
+        status: status,
+        amount: amount,
+        date: new Date().toISOString().slice(0,10)
+      })
+    });
+    const data = await res.json();
+    if(data.success) {
+      msg.style.color = "blue";
+      msg.textContent = `譲渡を実行しました。`;
+    } else {
+      msg.style.color = "red";
+      msg.textContent = `エラー: ${data.message}`;
+    }
+  } catch (e) {
+    msg.style.color = "red";
+    msg.textContent = `通信エラー: ${e.message}`;
+  }
+}
+</script>
+
+</body>
+</html>
